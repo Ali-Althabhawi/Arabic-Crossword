@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arabic Crossword Puzzle</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f9f9f9;
+            margin: 0;
+            padding: 0;
+            direction: rtl;
+        }
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.12);
+            padding: 36px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 24px;
+            font-size: 2.2em;
+            color: #1976d2;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+        .words-box {
+            background: linear-gradient(90deg, #e3f2fd 0%, #fffde7 100%);
+            padding: 18px;
+            border-radius: 10px;
+            margin-bottom: 28px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 18px;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(33,150,243,0.08);
+        }
+        .word {
+            font-size: 2em;
+            background: #fff;
+            border: 2px solid #1976d2;
+            border-radius: 8px;
+            padding: 10px 22px;
+            margin: 2px;
+            transition: background 0.2s, color 0.2s, border 0.2s;
+            color: #1976d2;
+            font-weight: 500;
+        }
+        .word.found {
+            background: #43a047;
+            color: #fff;
+            border: 2px solid #388e3c;
+        }
+        .crossword {
+            display: grid;
+            grid-template-columns: repeat(10, 54px);
+            grid-template-rows: repeat(10, 54px);
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 28px;
+            background: linear-gradient(90deg, #fffde7 0%, #e3f2fd 100%);
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(33,150,243,0.10);
+        }
+        .cell {
+            background: #fff;
+            border: 2.5px solid #bdbdbd;
+            font-size: 2.2em;
+            text-align: center;
+            line-height: 54px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s, border 0.2s;
+            border-radius: 50%;
+            position: relative;
+        }
+        .cell.selected {
+            background: #ffe082;
+            border: 3px solid #ff9800;
+            box-shadow: 0 0 0 4px #fffde7, 0 0 0 8px #ff9800;
+        }
+        .cell.found {
+            background: #43a047;
+            border: 3px solid #388e3c;
+            color: #fff;
+            box-shadow: 0 0 0 4px #e3f2fd, 0 0 0 8px #388e3c;
+        }
+        .controls {
+            text-align: center;
+        }
+        button {
+            background: linear-gradient(90deg, #1976d2 0%, #43a047 100%);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 28px;
+            font-size: 1.2em;
+            cursor: pointer;
+            margin-top: 10px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(33,150,243,0.12);
+        }
+        button:hover {
+            background: linear-gradient(90deg, #43a047 0%, #1976d2 100%);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Arabic Crossword Puzzle</h1>
+        <div class="words-box" id="wordsBox"></div>
+        <div class="crossword" id="crosswordGrid"></div>
+        <div class="controls">
+            <button onclick="resetPuzzle()">Reset / Refresh</button>
+        </div>
+    </div>
+    <script>
+        // Letters learned so far
+        const learnedLetters = ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','و','ي'];
+        // All Arabic letters (for grid)
+        const allLetters = ['ا','ب','ت','ث','ج','ح','خ','د','ذ','ر','ز','س','ش','ص','ض','ط','ظ','ع','غ','ف','ق','ك','ل','م','ن','ه','و','ي'];
+        // Static list of words (only using learned letters)
+        // Add translation for each word
+        const staticWordsData = [
+            { word: 'بيت', trans: 'house' },
+            { word: 'باب', trans: 'door' },
+            { word: 'جود', trans: 'generosity' },
+            { word: 'حبر', trans: 'ink' },
+            { word: 'ذوب', trans: 'melt' },
+            { word: 'ورد', trans: 'rose' },
+            { word: 'رجب', trans: 'Rajab (month)' },
+            { word: 'ثوب', trans: 'garment' },
+            { word: 'يد', trans: 'hand' },
+            { word: 'خزر', trans: 'Khazar (tribe)' },
+            { word: 'دور', trans: 'role' },
+            { word: 'بدر', trans: 'full moon' },
+            { word: 'حوت', trans: 'whale' },
+            { word: 'جزر', trans: 'carrot' },
+            { word: 'رود', trans: 'ford' },
+            { word: 'زبد', trans: 'foam' },
+            { word: 'ود', trans: 'affection' },
+            { word: 'تاج', trans: 'crown' },
+            { word: 'ذبح', trans: 'slaughter' },
+            { word: 'يبر', trans: 'Yabr (name)' }
+        ];
+        let currentWords = [];
+        let currentTrans = [];
+        let foundWords = [];
+        let grid = [];
+        let selectedCells = [];
+        const gridSize = 10;
+        // Helper: pick 10 random words
+        function pickWords() {
+            const words = [...staticWordsData];
+            const chosen = [];
+            while (chosen.length < 10 && words.length > 0) {
+                const idx = Math.floor(Math.random() * words.length);
+                chosen.push(words[idx]);
+                words.splice(idx, 1);
+            }
+            return chosen;
+        }
+        // Helper: place words in grid
+        function placeWordsInGrid(words) {
+            // Initialize empty grid
+            let grid = Array.from({length: gridSize}, () => Array(gridSize).fill(''));
+            let positions = [];
+            words.forEach(word => {
+                // Try to place word horizontally or vertically
+                let placed = false;
+                for (let tries = 0; tries < 50 && !placed; tries++) {
+                    const dir = Math.random() > 0.5 ? 'H' : 'V';
+                    const maxStart = gridSize - word.length;
+                    const row = dir === 'H' ? Math.floor(Math.random() * gridSize) : Math.floor(Math.random() * maxStart);
+                    const col = dir === 'H' ? Math.floor(Math.random() * maxStart) : Math.floor(Math.random() * gridSize);
+                    let fits = true;
+                    for (let i = 0; i < word.length; i++) {
+                        const r = dir === 'H' ? row : row + i;
+                        const c = dir === 'H' ? col + i : col;
+                        if (grid[r][c] && grid[r][c] !== word[i]) {
+                            fits = false;
+                            break;
+                        }
+                    }
+                    if (fits) {
+                        for (let i = 0; i < word.length; i++) {
+                            const r = dir === 'H' ? row : row + i;
+                            const c = dir === 'H' ? col + i : col;
+                            grid[r][c] = word[i];
+                            positions.push({word, cells: [[r, c]]});
+                        }
+                        placed = true;
+                    }
+                }
+            });
+            // Fill empty cells with random letters
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    if (!grid[r][c]) {
+                        grid[r][c] = allLetters[Math.floor(Math.random() * allLetters.length)];
+                    }
+                }
+            }
+            return grid;
+        }
+        // Render words box with translation
+        function renderWordsBox() {
+            const box = document.getElementById('wordsBox');
+            box.innerHTML = '';
+            currentWords.forEach((word, i) => {
+                const div = document.createElement('div');
+                div.className = 'word' + (foundWords.includes(word) ? ' found' : '');
+                div.innerHTML = `<div>${word}</div><div style="font-size:0.7em;color:#388e3c;margin-top:4px;">${currentTrans[i]}</div>`;
+                box.appendChild(div);
+            });
+        }
+        // Render crossword grid
+        function renderGrid() {
+            const gridDiv = document.getElementById('crosswordGrid');
+            gridDiv.innerHTML = '';
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.textContent = grid[r][c];
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.addEventListener('mousedown', handleCellMouseDown);
+                    cell.addEventListener('mouseenter', handleCellMouseEnter);
+                    cell.addEventListener('mouseup', handleCellMouseUp);
+                    gridDiv.appendChild(cell);
+                }
+            }
+        }
+        // Selection logic
+        let isSelecting = false;
+        function handleCellMouseDown(e) {
+            isSelecting = true;
+            selectedCells = [];
+            document.querySelectorAll('.cell').forEach(cell => cell.classList.remove('selected'));
+            selectCell(e.target);
+        }
+        function handleCellMouseEnter(e) {
+            if (isSelecting) {
+                selectCell(e.target);
+            }
+        }
+        function handleCellMouseUp(e) {
+            isSelecting = false;
+            checkSelectedWord();
+        }
+        function selectCell(cell) {
+            const r = parseInt(cell.dataset.row);
+            const c = parseInt(cell.dataset.col);
+            const key = `${r},${c}`;
+            if (!selectedCells.some(([row, col]) => row === r && col === c)) {
+                selectedCells.push([r, c]);
+                cell.classList.add('selected');
+            }
+        }
+        function checkSelectedWord() {
+            if (selectedCells.length < 2) return;
+            // Get the word from selected cells
+            let word = '';
+            selectedCells.forEach(([r, c]) => {
+                word += grid[r][c];
+            });
+            if (currentWords.includes(word) && !foundWords.includes(word)) {
+                foundWords.push(word);
+                document.querySelectorAll('.cell.selected').forEach(cell => {
+                    cell.classList.add('found');
+                    cell.classList.remove('selected');
+                });
+                renderWordsBox();
+            } else {
+                // Keep highlight if found, else clear selection
+                document.querySelectorAll('.cell.selected').forEach(cell => cell.classList.remove('selected'));
+            }
+            selectedCells = [];
+        }
+        // Reset puzzle
+        function resetPuzzle() {
+            const picked = pickWords();
+            currentWords = picked.map(x => x.word);
+            currentTrans = picked.map(x => x.trans);
+            foundWords = [];
+            grid = placeWordsInGrid(currentWords);
+            renderWordsBox();
+            renderGrid();
+        }
+        // Initial load
+        resetPuzzle();
+    </script>
+</body>
+</html>
